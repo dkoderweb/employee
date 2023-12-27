@@ -1,19 +1,18 @@
 @extends('layouts.master')
 @section('content')
 <style>
-    .select2-close-mask {
-        z-index: 2099;
-    }
-
-    .select2-dropdown {
-        z-index: 3051;
-    }
+    .select2-close-mask{
+    z-index: 2099;
+}
+.select2-dropdown{
+    z-index: 3051;
+}
 </style>
 <div class="header_div">
     <h3>Employee List</h3>
-    <button type="button" class="btn btn-primary mb-2" data-bs-toggle="modal" data-bs-target="#exampleModal">Add</button>
+    <button type="button" class="btn btn-primary mb-2" data-bs-toggle="modal" data-bs-target="#exampleModal">Add</button> 
 </div>
-<div>
+<div> 
     <table id="employeeTable" class="table table-bordered table-hover">
         <thead>
             <tr>
@@ -26,10 +25,10 @@
             </tr>
         </thead>
         <tbody></tbody>
-    </table>
+    </table>    
 </div>
 <!-- Modal -->
-<div class="modal fade" id="exampleModal" aria-labelledby="employeemodel" aria-hidden="true">
+<div class="modal fade" id="exampleModal"  aria-labelledby="employeemodel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
@@ -77,8 +76,13 @@
 
 @section('script')
 <script>
-    $(document).ready(function () {
-        var table = $('#employeeTable').DataTable({
+$(document).ready(function() {
+  $(".select2").select2();
+});
+    var table;
+    $(document).ready(function() {
+        $('.select2').select2();
+        table = $('#employeeTable').DataTable({
             processing: true,
             serverSide: true,
             ajax: "{{ route('employee.index') }}",
@@ -87,86 +91,131 @@
                 { data: 'name', name: 'name' },
                 { data: 'email', name: 'email' },
                 { data: 'phone', name: 'phone' },
-                {
-                    data: 'departments',
+                { 
+                    data: 'departments', 
                     name: 'departments',
-                    render: function (data, type, row) {
+                    render: function(data, type, row) {
                         return Array.isArray(data) ? data.join(', ') : data;
                     }
-                },
-                { data: 'action', name: 'action', orderable: false, searchable: false }
-            ]
-        });
-
-        $('#employeeTable thead tr').clone(true).appendTo('#employeeTable thead');
-        $('#employeeTable thead tr:eq(1) th').each(function (i) {
-            var title = $(this).text();
-            if (i < 4) {
-                $(this).html('<input type="text" placeholder="Search ' + title + '" />');
-                $('input', this).on('keyup change', function () {
-                    if (table.column(i).search() !== this.value) {
-                        table.column(i).search(this.value).draw();
-                    }
-                });
-            } else if (i == 4) {
-                var departmentsSelect = $('<select class="form-control"> @foreach($departments as $department)
-<option value="{{ $department->id }}">{{ $department->name }}</option>@endforeach</select>')
-                    .appendTo($(this).empty())
-                    .on('change', function () {
-                        var val = $.fn.dataTable.util.escapeRegex($(this).val());
-                        table.column(i).search(val ? '^' + val + '$' : '', true, false).draw();
-                    });
-
-                table.column(i).data().unique().sort().each(function (d, j) {
-                    departmentsSelect.append('<option value="' + d + '">' + d + '</option>');
-                });
-            }
-        });
-
-        table.on('destroy', function () {
-            $('#employeeTable thead tr:eq(1)').remove();
+                },                
+            { data: 'action', name: 'action', orderable: false, searchable: false }
+            ],
         });
 
         @if($errors->any())
             $('#exampleModal').modal('show');
         @endif
-    });
 
-    function saveEmployee() {
-        var id = $('#employee_id').val();
-        var name = $('#name').val();
-        var email = $('#email').val();
-        var phone = $('#phone').val();
-        var departments = $('#departments').val();
+        $(document).on('click', '.employeeEdit', function() {
+            $('#nameError').text('');
+            $('#emailError').text('');
+            $('#phoneError').text('');
+            $('#departmentsError').text('');
+            $('#exampleModal').modal('show');
+            var id = $(this).data('id');
+            $.ajax({
+                url: "{{ route('employee.edit', ['employee' => '__id__']) }}".replace('__id__', id),
+                method: "GET",
+                dataType: "json",
+                success: function(response) {
+                    var data = response.data;
+                    $('#employee_id').val(data.id);
+                    $('#name').val(data.name);
+                    $('#email').val(data.email);
+                    $('#phone').val(data.phone);
+                    $('#departments').val([]).trigger('change'); 
 
-        var url = id ? "{{ route('employee.update', ['employee' => '__id__']) }}" : "{{ route('employee.store') }}";
-        url = url.replace('__id__', id);
-        $.ajax({
-            url: url,
-            type: id ? 'PUT' : 'POST',
-            data: {
-                _token: '{{ csrf_token() }}',
-                id: id,
-                name: name,
-                email: email,
-                phone: phone,
-                departments: departments,
-            },
-            success: function (response) {
-                $('#exampleModal').modal('hide');
-                table.ajax.reload();
-                toastr.success(response.success);
-            },
-            error: function (error) {
-                if (error.responseJSON.errors) {
-                    $('#nameError').text(error.responseJSON.errors.name ? error.responseJSON.errors.name[0] : '');
-                    $('#emailError').text(error.responseJSON.errors.email ? error.responseJSON.errors.email[0] : '');
-                    $('#phoneError').text(error.responseJSON.errors.phone ? error.responseJSON.errors.phone[0] : '');
-                    $('#departmentsError').text(error.responseJSON.errors.departments ? error.responseJSON.errors.departments[0] : '');
+                    var departmentArray = data.departments.map(function(department) {
+                        return department.id;
+                    });
+
+                    if (departmentArray && departmentArray.length > 0) {
+                        $('#departments').val(departmentArray).trigger('change');
+                    } 
+                },
+                error: function(error) {
+                    console.error("Error fetching employee details:", error);
                 }
+            });
+
+
+            $('#modalTitle').text('Edit Employee');
+            $('#saveButton').text('Update');
+        });
+
+
+        $('#exampleModal').on('show.bs.modal', function() {
+            $('#nameError').text('');
+            $('#emailError').text('');
+            $('#phoneError').text('');
+            $('#departmentsError').text('');
+            $('#employee_id').val('');
+            $('#name').val('');
+            $('#email').val('');
+            $('#phone').val('');
+            $('#departments').val([]).trigger('change');
+            $('#modalTitle').html('Add Employee');
+            $('#saveButton').html('Save');
+        });
+
+        $(document).on('click', '.delete-confirm', function(event) {
+            event.preventDefault();
+            var url = $(this).attr('href');
+            if (confirm('Are you sure you want to delete this item?')) {
+                $.ajax({
+                    url: url,
+                    type: 'DELETE',
+                    data: {
+                        _token: '{{ csrf_token() }}',
+                    },
+                    success: function(response) {
+                        table.ajax.reload();
+                        toastr.success(response.success);
+                    },
+                    error: function(error) {
+                        toastr.error('Error deleting employee.');
+                    }
+                });
             }
         });
-    }
+    });
+
+function saveEmployee() {
+    var id = $('#employee_id').val();
+    var name = $('#name').val();
+    var email = $('#email').val();
+    var phone = $('#phone').val();
+    var departments = $('#departments').val();
+
+    var url = id ? "{{ route('employee.update', ['employee' => '__id__']) }}" : "{{ route('employee.store') }}";
+    url = url.replace('__id__', id);
+        console.log(id,name,email,phone,departments,url)
+    $.ajax({
+        url: url,
+        type: id ? 'PUT' : 'POST',
+        data: {
+            _token: '{{ csrf_token() }}',
+            id: id,
+            name: name,
+            email: email,
+            phone: phone,
+            departments: departments,
+        },
+        success: function(response) {
+            $('#exampleModal').modal('hide');
+            table.ajax.reload();
+            toastr.success(response.success);
+        },
+        error: function(error) {
+            if (error.responseJSON.errors) {
+                $('#nameError').text(error.responseJSON.errors.name ? error.responseJSON.errors.name[0] : '');
+                $('#emailError').text(error.responseJSON.errors.email ? error.responseJSON.errors.email[0] : '');
+                $('#phoneError').text(error.responseJSON.errors.phone ? error.responseJSON.errors.phone[0] : '');
+                $('#departmentsError').text(error.responseJSON.errors.departments ? error.responseJSON.errors.departments[0] : '');
+            }
+        }
+    });
+}
 
 </script>
 @endsection
