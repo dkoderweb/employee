@@ -75,13 +75,43 @@
 @endsection
 
 @section('script')
-<script>
-$(document).ready(function() {
-  $(".select2").select2();
-});
+<script> 
     var table;
     $(document).ready(function() {
-        $('.select2').select2();
+    $('.select2').select2();
+
+        if($('#employeeTable thead tr').length == '2')
+    {
+        $('#employeeTable thead tr:eq(0)').remove();
+    }
+
+    $('#employeeTable thead tr').clone(true).appendTo( '#employeeTable thead' );
+
+    $('#employeeTable thead tr:eq(0) th').each( function (i) {
+        var title = $(this).text();
+
+        var newTitle = title.split(' ').join('_');
+
+        $(this).html( '<input type="text" class="form-control input-sm search_'+newTitle+'" data-col="'+i+'" placeholder="Search" />' );
+
+        $( 'input', this ).on( 'keyup', function () {
+            if ( table.column(i).search() !== this.value ) 
+            {
+                table
+                .column(i)
+                .search( this.value )
+                .draw();
+            }
+        });
+    });
+
+    $('#employeeTable thead tr:eq(0) th input').css({
+        'width':'140px',
+        'display':'inline-block'
+    });
+
+    $('.search_Action').prop('disabled',true);
+
         table = $('#employeeTable').DataTable({
             processing: true,
             serverSide: true,
